@@ -1,101 +1,70 @@
-name: Test
+name: Unit Test + Lint + Security
 
 on:
   push:
+    branches-ignore:
+      - main
   pull_request:
-  workflow_dispatch:
-
-env:
-  GO111MODULE: on
+    branches-ignore:
+      - main
 
 jobs:
-
-  golangci-lint:
+  build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v2
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.17'
+          go-version: 'stable'
 
-      - uses: actions/checkout@v3.1.0
+      - name: Check gofmt passes
+        run: |
+          RESULT="$(gofmt -d -s .)"
+          if [ -n "$RESULT" ]; then
+            echo "Code is not properly formatted. Please run 'gofmt -w .'"
+            echo $RESULT
+            exit 1
+          fi
 
-      - uses: golangci/golangci-lint-action@v2
-        with:
-          version: latest
-          args: --verbose
+      - name: Verify dependencies
+        run: |
+          go env -w GO111MODULE=on
+          go mod download
+          LINT_VERSION=1.54.1
+          curl -fsSL https://github.com/golangci/golangci-lint/releases/download/v${LINT_VERSION}/golangci-lint-${LINT_VERSION}-linux-amd64.tar.gz | \
+            tar xz --strip-components 1 --wildcards \*/golangci-lint
+          mkdir -p bin && mv golangci-lint bin/
 
-  test-unix:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-        - ubuntu
-        - macOS
-        go:
-        - 14
-        - 15
-        - 16
-        - 17
-    name: '${{ matrix.platform }} | 1.${{ matrix.go }}.x'
-    runs-on: ${{ matrix.platform }}-latest
-    steps:
+      - name: Run checks
+        run: |
+          set -e
+          STATUS=0
+          assert-nothing-changed() {
+            local diff
+            "$@" >/dev/null || return 1
+            if ! diff="$(git diff -U1 --color --exit-code)"; then
+              printf '\e[31mError: running `\e[1m%s\e[22m` results in modifications that you must check into version control:\e[0m\n%s\n\n' "$*" "$diff" >&2
+              git checkout -- .
+              STATUS=1
+            fi
+          }
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.${{ matrix.go }}.x
+          assert-nothing-changed go fmt ./...
+          assert-nothing-changed go mod tidy
 
-    - uses: actions/checkout@v3.1.0
+      - name: Install go/vulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-    - uses: actions/cache@v2
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-1.${{ matrix.go }}.x-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ runner.os }}-1.${{ matrix.go }}.x-
+      - name: Go vulncheck
+        run: govulncheck ./...
 
-    - run: |
-        export GOBIN=$HOME/go/bin
-        case "${{ matrix.go }}" in
-          16|17) _version='@latest';;
-          *) _version='';;
-        esac
-        go install github.com/kyoh86/richgo"${_version}"
-        go install github.com/mitchellh/gox"${_version}"
+      - name: Go generate
+        run: go generate ./...
 
-    - run: PATH=$HOME/go/bin/:$PATH make test build
+      - name: Test
+        run: go test -v -race -p=1 ./...
 
-  test-win:
-    name: MINGW64
-    defaults:
-      run:
-        shell: msys2 {0}
-    runs-on: windows-latest
-    steps:
-
-    - shell: bash
-      run: git config --global core.autocrlf input
-
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >
-          git
-          make
-          unzip
-          mingw-w64-x86_64-go
-
-    - uses: actions/checkout@v3.1.0
-
-    - uses: actions/cache@v2
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ runner.os }}-${{ matrix.go }}-
-
-    - run: |
-        export GOBIN=$HOME/go/bin
-        go install github.com/kyoh86/richgo@latest
-        go install github.com/mitchellh/gox@latest
-
-    - run: PATH=$HOME/go/bin:$PATH make test build
+      - name: Run vet tool
+        run: go vet ./...

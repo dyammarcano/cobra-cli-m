@@ -1,4 +1,4 @@
-package cmd
+package licenses
 
 func initAgpl() {
 	Licenses["agpl"] = License{

@@ -1,19 +1,4 @@
-// Copyright © 2021 Steve Francia <spf@spf13.com>.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Parts inspired by https://github.com/ryanuber/go-license
-
-package cmd
+package licenses
 
 import (
 	"fmt"
@@ -52,11 +37,11 @@ func init() {
 	initAgpl()
 }
 
-// getLicense returns license specified by user in flag or in config.
+// GetLicense returns license specified by user in flag or in config.
 // If user didn't specify the license, it returns none
 //
 // TODO: Inspect project for existing license
-func getLicense() License {
+func GetLicense(userLicense string) License {
 	// If explicitly flagged, use that.
 	if userLicense != "" {
 		return findLicense(userLicense)
@@ -77,7 +62,7 @@ func getLicense() License {
 	return Licenses["none"]
 }
 
-func copyrightLine() string {
+func CopyrightLine() string {
 	author := viper.GetString("author")
 
 	year := viper.GetString("year") // For tests.
@@ -85,7 +70,7 @@ func copyrightLine() string {
 		year = time.Now().Format("2006")
 	}
 
-	return "Copyright © " + year + " " + author
+	return fmt.Sprintf("Copyright © %s %s", year, author)
 }
 
 // findLicense looks for License object of built-in licenses.

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/dyammarcano/cobra-cli-m/licenses"
 	"os"
 	"text/template"
 
@@ -15,7 +16,7 @@ type Project struct {
 	PkgName      string
 	Copyright    string
 	AbsolutePath string
-	Legal        License
+	Legal        licenses.License
 	Viper        bool
 	AppName      string
 }
@@ -70,7 +71,7 @@ func (p *Project) Create() error {
 
 func (p *Project) createLicenseFile() error {
 	data := map[string]interface{}{
-		"copyright": copyrightLine(),
+		"copyright": licenses.CopyrightLine(),
 	}
 	licenseFile, err := os.Create(fmt.Sprintf("%s/LICENSE", p.AbsolutePath))
 	if err != nil {

@@ -1,20 +1,8 @@
-// Copyright © 2015 Steve Francia <spf@spf13.com>.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
 	"fmt"
+	"github.com/dyammarcano/cobra-cli-m/licenses"
 	"os"
 	"unicode"
 
@@ -62,8 +50,8 @@ Example: cobra-cli add server -> resulting in a new cmd/server.go`,
 				CmdParent: parentName,
 				Project: &Project{
 					AbsolutePath: wd,
-					Legal:        getLicense(),
-					Copyright:    copyrightLine(),
+					Legal:        licenses.GetLicense(userLicense),
+					Copyright:    licenses.CopyrightLine(),
 				},
 			}
 
@@ -85,50 +73,51 @@ func init() {
 // It supports only ASCII (1-byte character) strings.
 // https://github.com/spf13/cobra/issues/269
 func validateCmdName(source string) string {
-	i := 0
-	l := len(source)
-	// The output is initialized on demand, then first dash or underscore
-	// occurs.
-	var output string
-
-	for i < l {
-		if source[i] == '-' || source[i] == '_' {
-			if output == "" {
-				output = source[:i]
-			}
-
-			// If it's last rune and it's dash or underscore,
-			// don't add it output and break the loop.
-			if i == l-1 {
-				break
-			}
-
-			// If next character is dash or underscore,
-			// just skip the current character.
-			if source[i+1] == '-' || source[i+1] == '_' {
-				i++
-				continue
-			}
-
-			// If the current character is dash or underscore,
-			// upper next letter and add to output.
-			output += string(unicode.ToUpper(rune(source[i+1])))
-			// We know, what source[i] is dash or underscore and source[i+1] is
-			// uppered character, so make i = i+2.
-			i += 2
-			continue
-		}
-
-		// If the current character isn't dash or underscore,
-		// just add it.
-		if output != "" {
-			output += string(source[i])
-		}
-		i++
-	}
+	output := convertDashesAndUnderscoresToUppercase(source)
 
 	if output == "" {
 		return source // source is initially valid name.
 	}
 	return output
+}
+
+func convertDashesAndUnderscoresToUppercase(source string) string {
+	var output string
+	for i := 0; i < len(source); i++ {
+		if isDashOrUnderscore(source[i]) {
+			if output == "" {
+				output = source[:i]
+			}
+
+			if isLastRune(i, source) {
+				break
+			}
+
+			if isDashOrUnderscore(source[i+1]) {
+				i++
+				continue
+			}
+
+			output += uppercaseNextLetter(source, i)
+			i += 2
+			continue
+		}
+
+		if output != "" {
+			output += string(source[i])
+		}
+	}
+	return output
+}
+
+func isDashOrUnderscore(char byte) bool {
+	return char == '-' || char == '_'
+}
+
+func isLastRune(index int, source string) bool {
+	return index == len(source)-1
+}
+
+func uppercaseNextLetter(source string, index int) string {
+	return string(unicode.ToUpper(rune(source[index+1])))
 }

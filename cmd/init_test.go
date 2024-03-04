@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/dyammarcano/cobra-cli-m/licenses"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,8 +15,8 @@ func getProject() *Project {
 	wd, _ := os.Getwd()
 	return &Project{
 		AbsolutePath: fmt.Sprintf("%s/testproject", wd),
-		Legal:        getLicense(),
-		Copyright:    copyrightLine(),
+		Legal:        licenses.GetLicense(userLicense),
+		Copyright:    licenses.CopyrightLine(),
 		AppName:      "cmd",
 		PkgName:      "github.com/spf13/cobra-cli/cmd/cmd",
 		Viper:        true,
